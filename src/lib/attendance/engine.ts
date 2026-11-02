@@ -23,6 +23,10 @@ import type { AttendanceRecord, AttendanceSettings, Employee, VerificationMethod
  * the same clock-in (a retry) rather than the start of a clock-out. */
 export const CLOCK_IN_REPEAT_WINDOW_MINUTES = 5;
 
+/** An open clock-in from an earlier calendar day (e.g. a shift that runs past
+ * midnight) is still treated as the shift to clock out of, for up to this long. */
+export const MAX_OPEN_SHIFT_HOURS = 16;
+
 export type AttendanceDenialReason =
   | "RATE_LIMITED"
   | "INVALID_EMPLOYEE"
@@ -213,9 +217,22 @@ export async function recordAttendance(input: RecordAttendanceInput): Promise<At
   const now = new Date();
   const attendanceDate = getAttendanceDateKey(now, settings.timezone);
 
-  const existing = await prisma.attendanceRecord.findUnique({
-    where: { employeeId_attendanceDate: { employeeId: employee.id, attendanceDate } },
-  });
+  // Today's record, or — once the calendar day has rolled over (past midnight in
+  // the office timezone) — the employee's still-open shift from earlier, so
+  // clocking out of it isn't mistaken for a brand-new clock-in.
+  const existing =
+    (await prisma.attendanceRecord.findUnique({
+      where: { employeeId_attendanceDate: { employeeId: employee.id, attendanceDate } },
+    })) ??
+    (await prisma.attendanceRecord.findFirst({
+      where: {
+        employeeId: employee.id,
+        clockOut: null,
+        clockIn: { gte: new Date(now.getTime() - MAX_OPEN_SHIFT_HOURS * 3_600_000) },
+        attendanceDate: { lt: attendanceDate },
+      },
+      orderBy: { clockIn: "desc" },
+    }));
 
   if (existing?.clockOut) {
     return { ok: false, reason: "ALREADY_COMPLETE" };
@@ -297,7 +314,11 @@ export async function recordAttendance(input: RecordAttendanceInput): Promise<At
       return { ok: false, reason: "TASK_REPORT_INVALID" };
     }
 
-    const clockOutStatus = classifyClockOut(now, { ...settings, workEnd: employee.workEnd ?? settings.workEnd });
+    const clockOutStatus = classifyClockOut(
+      now,
+      { ...settings, workEnd: employee.workEnd ?? settings.workEnd },
+      existing.attendanceDate
+    );
     let earlyClockOutReason: string | null = null;
     if (clockOutStatus === "EARLY") {
       const reason = input.earlyClockOutReason?.trim() ?? "";

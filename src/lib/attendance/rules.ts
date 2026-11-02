@@ -80,9 +80,11 @@ export function calculateMinutesWorked(clockIn: Date, clockOut: Date): number {
  * see engine.ts); anything at/after workEnd is ON_TIME regardless of how late it is. */
 export function classifyClockOut(
   clockOutInstant: Date,
-  settings: Pick<AttendanceSettings, "timezone" | "workEnd">
+  settings: Pick<AttendanceSettings, "timezone" | "workEnd">,
+  /** The shift's attendance date — differs from the clock-out's own day when a shift runs past midnight. */
+  shiftDateKey?: Date
 ): ClockOutStatus {
-  const dateKey = getAttendanceDateKey(clockOutInstant, settings.timezone);
+  const dateKey = shiftDateKey ?? getAttendanceDateKey(clockOutInstant, settings.timezone);
   const scheduledEnd = scheduledInstant(dateKey, settings.workEnd, settings.timezone);
   return clockOutInstant.getTime() < scheduledEnd.getTime() ? "EARLY" : "ON_TIME";
 }

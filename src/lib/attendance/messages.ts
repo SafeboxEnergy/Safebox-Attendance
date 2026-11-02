@@ -9,7 +9,7 @@ export const DENIAL_MESSAGES: Record<AttendanceDenialReason, string> = {
   QR_SESSION_INVALID: "This QR code is invalid or has expired.\nPlease scan the attendance QR code at the office again.",
   QR_WRONG_OFFICE: "This QR code is not valid for your assigned office.",
   NETWORK_DENIED:
-    "Attendance unavailable.\nYou must be connected to the company's authorized office network to clock attendance.",
+    "Attendance unavailable.\nYou must be connected to the company's authorized office network to clock attendance.\nOn the office Wi-Fi with an iPhone? Turn off iCloud Private Relay (Settings › your name › iCloud › Private Relay) and Limit IP Address Tracking (Settings › Wi-Fi › ⓘ next to the network), then try again.",
   LOCATION_REQUIRED:
     "We need your location to confirm you're at the office.\nAllow location access when your phone asks, then try again.",
   LOCATION_INACCURATE:
@@ -26,7 +26,11 @@ export const DENIAL_MESSAGES: Record<AttendanceDenialReason, string> = {
     "You're clocking out before the end of your scheduled work day.\nPlease briefly state why (max 50 words) to continue.",
 };
 
-export function denialMessage(denial: AttendanceDenial): string {
+export function denialMessage(denial: AttendanceDenial, sourceIp?: string): string {
+  // The address the server saw, so an admin can compare it with the authorized network.
+  if (denial.reason === "NETWORK_DENIED" && sourceIp) {
+    return `${DENIAL_MESSAGES.NETWORK_DENIED}\nYour connection's address: ${sourceIp}`;
+  }
   if (denial.reason === "LOCATION_OUT_OF_RANGE" && denial.distanceMeters != null) {
     return `Your phone places you ${formatDistance(denial.distanceMeters)} from the office, so attendance wasn't recorded.\nIf you are at the office, move near a window and try again.`;
   }
