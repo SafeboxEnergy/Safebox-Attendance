@@ -71,7 +71,7 @@ export async function handleClockRequest(request: NextRequest): Promise<NextResp
   if (!result.ok) {
     const status = result.reason === "RATE_LIMITED" ? 429 : 403;
     const response = NextResponse.json(
-      { ok: false, reason: result.reason, message: denialMessage(result) },
+      { ok: false, reason: result.reason, message: denialMessage(result, sourceIp) },
       { status, headers: result.retryAfterSeconds ? { "Retry-After": String(result.retryAfterSeconds) } : {} }
     );
     if (setDeviceIdCookie) response.cookies.set(DEVICE_ID_COOKIE, deviceId, DEVICE_ID_COOKIE_OPTIONS);

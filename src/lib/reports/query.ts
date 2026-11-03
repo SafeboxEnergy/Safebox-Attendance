@@ -149,6 +149,55 @@ export interface TaskReportRow {
   tasks: string;
 }
 
+/** Structured version of a task report, used by the PDF export's card-style layout. */
+export interface TaskReportDetail {
+  employee: string;
+  department: string;
+  date: string;
+  clockIn: string;
+  clockOut: string;
+  noTasksReason: string | null;
+  tasks: { description: string; status: TaskStatus; label: string }[];
+}
+
+export async function fetchTaskReportDetails(
+  filters: TaskReportFilters,
+  timezone = "Africa/Lagos"
+): Promise<TaskReportDetail[]> {
+  const taskStatus = TASK_STATUSES.includes(filters.status as TaskStatus) ? (filters.status as TaskStatus) : undefined;
+  const where: Prisma.DailyTaskReportWhereInput = {};
+  if (filters.from || filters.to) {
+    where.attendanceDate = {};
+    if (filters.from) where.attendanceDate.gte = new Date(`${filters.from}T00:00:00Z`);
+    if (filters.to) where.attendanceDate.lte = new Date(`${filters.to}T00:00:00Z`);
+  }
+  if (filters.officeId) where.attendanceRecord = { officeId: filters.officeId };
+  if (taskStatus) where.tasks = { some: { status: taskStatus } };
+  if (filters.status === "NONE") where.noTasksReason = { not: null };
+
+  const reports = await prisma.dailyTaskReport.findMany({
+    where,
+    include: {
+      employee: { include: { department: true } },
+      attendanceRecord: true,
+      tasks: { orderBy: { position: "asc" } },
+    },
+    orderBy: [{ attendanceDate: "desc" }, { submittedAt: "asc" }],
+    take: 5000,
+  });
+
+  const time = (d: Date | null) => (d ? formatInTimeZone(d, timezone, "h:mm a") : "—");
+  return reports.map((r) => ({
+    employee: `${r.employee.firstName} ${r.employee.lastName}`,
+    department: r.employee.department?.name ?? "",
+    date: r.attendanceDate.toISOString().slice(0, 10),
+    clockIn: time(r.attendanceRecord.clockIn),
+    clockOut: r.attendanceRecord.clockOut ? time(r.attendanceRecord.clockOut) : r.attendanceRecord.clockIn ? "Not clocked out" : "—",
+    noTasksReason: r.noTasksReason,
+    tasks: r.tasks.map((t) => ({ description: t.description, status: t.status, label: TASK_STATUS_LABELS[t.status] })),
+  }));
+}
+
 export async function fetchTaskReportRows(filters: TaskReportFilters, timezone = "Africa/Lagos"): Promise<TaskReportRow[]> {
   const taskStatus = TASK_STATUSES.includes(filters.status as TaskStatus) ? (filters.status as TaskStatus) : undefined;
   const where: Prisma.DailyTaskReportWhereInput = {};

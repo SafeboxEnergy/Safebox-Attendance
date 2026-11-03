@@ -1,5 +1,16 @@
 # Troubleshooting
 
+## "Attendance unavailable... authorized office network" on iPhones only
+
+iCloud Private Relay and Limit IP Address Tracking can send Safari's traffic through Apple's
+servers, so the app sees Apple's address instead of the office's and refuses it. The denial
+screen shows the address the server saw: if it isn't the office's, this is a likely cause.
+
+- **One phone**: turn off Private Relay (Settings › your name › iCloud) and Limit IP Address
+  Tracking (Settings › Wi-Fi › ⓘ next to the network).
+- **The whole office**: make the office router's DNS refuse `mask.icloud.com` and
+  `mask-h2.icloud.com`. iPhones then skip Private Relay on that Wi-Fi.
+
 ## "Attendance unavailable... authorized office network" for everyone at the office
 
 1. Admin → Offices & Network → check the office's network status.
