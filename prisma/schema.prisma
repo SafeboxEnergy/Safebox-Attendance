@@ -90,8 +90,8 @@ model Office {
   address   String?
   timezone  String   @default("Africa/Lagos")
   isActive  Boolean  @default(true)
-  /// Where the office is, for QR + location attendance (lib/attendance/location.ts):
-  /// a scan only counts when the phone reports a position within the radius.
+  /// Where the office is, for location-based attendance (lib/attendance/location.ts):
+  /// attendance only counts when the phone reports a position within the radius.
   latitude             Float?
   longitude            Float?
   locationRadiusMeters Int       @default(150)
@@ -332,6 +332,7 @@ enum VerificationMethod {
   QR_NETWORK
   QR_ONLY
   QR_LOCATION
+  LOCATION
   MANUAL_ADMIN
 }
 
@@ -578,8 +579,10 @@ model CompanySettings {
   @@map("company_settings")
 }
 
-/// Shown to admins as "Network mode" and "QR + location mode" (lib/attendance/modes.ts).
+/// Attendance verification options shown in lib/attendance/modes.ts.
 enum AttendanceMode {
+  /// Phone location inside the assigned office radius; no network or QR required.
+  LOCATION_ONLY
   /// On the authorized office network.
   NETWORK_ONLY
   /// A scan of the printed office QR plus a phone location inside the office radius —

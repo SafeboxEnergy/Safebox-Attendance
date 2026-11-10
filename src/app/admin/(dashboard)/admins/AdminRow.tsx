@@ -4,9 +4,21 @@ import { useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { setAdminActiveAction, deleteAdminAction } from "@/lib/actions/admins";
 import { toast, toastError } from "@/hooks/use-toast";
-import type { User } from "@prisma/client";
+import type { AdminRole } from "@prisma/client";
 
-export function AdminActiveToggle({ admin }: { admin: User }) {
+/** Exactly the fields this table renders. Not `User`: these objects cross into a
+ * Client Component, which serializes them into the page payload sent to the
+ * browser — a full `User` row would publish every admin's bcrypt hash. */
+export interface AdminListItem {
+  id: string;
+  fullName: string;
+  email: string;
+  role: AdminRole;
+  isActive: boolean;
+  lastLoginAt: Date | null;
+}
+
+export function AdminActiveToggle({ admin }: { admin: AdminListItem }) {
   const [pending, startTransition] = useTransition();
   return (
     <Button
@@ -29,7 +41,7 @@ export function AdminActiveToggle({ admin }: { admin: User }) {
   );
 }
 
-export function DeleteAdminButton({ admin }: { admin: User }) {
+export function DeleteAdminButton({ admin }: { admin: AdminListItem }) {
   const [pending, startTransition] = useTransition();
 
   function submit() {
@@ -51,7 +63,7 @@ export function DeleteAdminButton({ admin }: { admin: User }) {
   );
 }
 
-export function AdminRow({ admin, isSelf }: { admin: User; isSelf: boolean }) {
+export function AdminRow({ admin, isSelf }: { admin: AdminListItem; isSelf: boolean }) {
   return (
     <tr className="border-b last:border-0">
       <td className="px-4 py-2">{admin.fullName}</td>

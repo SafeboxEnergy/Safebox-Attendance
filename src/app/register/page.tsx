@@ -57,7 +57,7 @@ export default async function RegisterPage({
       resetSeconds={settings.kioskResetSeconds}
       initialError={error ?? null}
       hasQrSession={hasValidQrSession}
-      checkLocation={hasValidQrSession}
+      checkLocation={settings.attendanceMode === "LOCATION_ONLY" || hasValidQrSession}
     />
   );
 }

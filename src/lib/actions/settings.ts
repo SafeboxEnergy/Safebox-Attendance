@@ -91,7 +91,7 @@ const attendanceSettingsSchema = z.object({
   workStart: z.string().regex(/^\d{2}:\d{2}$/),
   gracePeriodMinutes: z.coerce.number().int().min(0).max(180),
   workEnd: z.string().regex(/^\d{2}:\d{2}$/),
-  attendanceMode: z.enum(["NETWORK_ONLY", "QR_ONLY"]),
+  attendanceMode: z.enum(["NETWORK_ONLY", "QR_ONLY", "LOCATION_ONLY"]),
   weekendIsOvertime: z.coerce.boolean(),
   holidayIsOvertime: z.coerce.boolean(),
   qrSessionMinutes: z.coerce.number().int().min(1).max(120),

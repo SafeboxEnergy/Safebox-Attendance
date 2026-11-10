@@ -9,7 +9,11 @@ export const dynamic = "force-dynamic";
 
 export default async function AdminsPage() {
   const [admins, self] = await Promise.all([
-    prisma.user.findMany({ orderBy: { createdAt: "asc" } }),
+    prisma.user.findMany({
+      // Explicit field list, not the whole row: these go to a Client Component.
+      select: { id: true, fullName: true, email: true, role: true, isActive: true, lastLoginAt: true },
+      orderBy: { createdAt: "asc" },
+    }),
     getCurrentUser(),
   ]);
 

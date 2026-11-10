@@ -25,7 +25,7 @@ export default async function AdminDashboardLayout({ children }: { children: Rea
         companyName={company.companyName}
         logoUrl={company.logoUrl}
         nav={nav}
-        user={user}
+        user={{ fullName: user.fullName, role: user.role }}
         notificationCount={notificationCount}
       >
         {children}

@@ -6,6 +6,7 @@ Set in Admin → Settings → Attendance rules (`AttendanceSettings.attendanceMo
 
 | Mode | Requires |
 |---|---|
+| **Location-only mode** (`LOCATION_ONLY`) | Attendance ID + phone location inside the assigned office radius; no QR scan or authorized network required. |
 | **Network mode** (`NETWORK_ONLY`, default) | Attendance ID + authorized office network |
 | **QR + location mode** (`QR_ONLY`) | Attendance ID + a scan of the office QR + a phone location inside the office radius — for when the office network is down (e.g. a power cut). Staff use mobile data. |
 
@@ -20,6 +21,20 @@ The server makes the location decision (`lib/attendance/location.ts`) from the c
 phone reports. That stops a forwarded photo of the QR being used from home, but not someone
 who fakes their phone's GPS, which is why Network mode is the everyday setting. Each record
 keeps the reported distance from the office and the reading's accuracy (not the coordinates).
+
+## Location-only attendance
+
+Configure each office’s coordinates and radius in Offices & Network, then select
+**Location-only mode** in Admin → Settings → Attendance rules. Employees open
+`/register`, enter their Attendance ID, and allow location access over HTTPS.
+Both clock-in and clock-out check their assigned office, regardless of the
+cross-office QR setting. The existing network and QR modes remain available; the
+default stays Network mode. Deploy the location-only database migration before
+selecting this mode.
+
+Location readings are client-reported and can be fabricated; this is a proximity
+check, not tamper-proof proof of presence. The existing accuracy limit (200 m) and
+office radius apply. Records store distance and accuracy, not employee coordinates.
 
 ## Generating a QR code
 

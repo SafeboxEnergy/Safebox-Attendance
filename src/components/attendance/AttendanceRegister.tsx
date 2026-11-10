@@ -19,23 +19,23 @@ interface AttendanceRegisterProps {
   resetSeconds: number;
   initialError?: string | null;
   hasQrSession: boolean;
-  /** QR + location mode: the scan has to be backed by the phone's location. */
+  /** Location-based modes require a reading before attendance submission. */
   checkLocation: boolean;
 }
 
 type ClockResult =
   | {
-      ok: true;
-      action: "CLOCK_IN" | "CLOCK_OUT";
-      firstName: string;
-      time: string;
-      status?: string;
-      clockInTime?: string;
-      totalMinutesWorked?: number;
-      clockOutStatus?: "EARLY" | "ON_TIME";
-      tasksReported?: number;
-      alreadyClockedIn?: boolean;
-    }
+    ok: true;
+    action: "CLOCK_IN" | "CLOCK_OUT";
+    firstName: string;
+    time: string;
+    status?: string;
+    clockInTime?: string;
+    totalMinutesWorked?: number;
+    clockOutStatus?: "EARLY" | "ON_TIME";
+    tasksReported?: number;
+    alreadyClockedIn?: boolean;
+  }
   | { ok: false; message: string };
 
 /** Clock-out is a short wizard: ID → task report → (only if leaving early) reason. */
@@ -79,7 +79,7 @@ const LOCATION_ERRORS = {
     "Location access is blocked, so we can't confirm you're at the office.\niPhone: Settings › Privacy & Security › Location Services › Safari Websites › While Using the App.\nAndroid: tap the icon left of the web address › Permissions › Location › Allow.\nThen try again.",
   unavailable: "Your phone couldn't work out where you are.\nMake sure Location/GPS is turned on, then try again.",
   timeout: "Finding your location took too long.\nMake sure Location/GPS is on, move near a window, and try again.",
-  unsupported: "This browser can't share your location.\nPlease open the QR link in Chrome or Safari and try again.",
+  unsupported: "This browser can't share your location.\nPlease open this attendance page in Chrome or Safari and try again.",
   // Browsers only hand out location on https pages — no setting on the phone fixes this.
   insecure:
     "Your location can't be checked because this attendance page isn't on a secure (https) connection.\nPlease let your admin know.",
@@ -537,6 +537,10 @@ export function AttendanceRegister({
           <p className="mt-3 rounded-md bg-primary/10 px-3 py-2 text-sm text-primary">
             QR verified — enter your Attendance ID to continue.
             {checkLocation ? " Your phone will ask for your location to confirm you're at the office." : null}
+          </p>
+        ) : checkLocation ? (
+          <p className="mt-3 rounded-md bg-primary/10 px-3 py-2 text-sm text-primary">
+            Enter your Attendance ID and allow location access to confirm you&apos;re at your assigned office.
           </p>
         ) : null}
 

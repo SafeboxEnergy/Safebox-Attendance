@@ -8,13 +8,20 @@ import { logoutAction } from "@/lib/actions/auth";
 import { NotificationBell } from "@/components/admin/NotificationBell";
 import { ThemeToggle } from "@/components/admin/ThemeToggle";
 import type { NavItem } from "@/lib/auth/nav";
-import type { User } from "@prisma/client";
+import type { AdminRole } from "@prisma/client";
+
+/** Deliberately only the two fields the sidebar renders: anything passed to a
+ * Client Component is serialized into the page payload the browser receives. */
+export interface SidebarUser {
+  fullName: string;
+  role: AdminRole;
+}
 
 interface AdminSidebarProps {
   companyName: string;
   logoUrl: string | null;
   nav: NavItem[];
-  user: User;
+  user: SidebarUser;
   /** null hides the bell entirely (role can't view notifications). */
   notificationCount: number | null;
 }
@@ -42,7 +49,7 @@ function NavLinks({ nav, pathname, onNavigate }: { nav: NavItem[]; pathname: str
   );
 }
 
-function SidebarFooter({ user }: { user: User }) {
+function SidebarFooter({ user }: { user: SidebarUser }) {
   return (
     <div className="border-t p-3">
       <p className="truncate text-sm font-medium">{user.fullName}</p>

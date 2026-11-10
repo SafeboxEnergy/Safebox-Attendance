@@ -1,16 +1,15 @@
 "use client";
 
 import { Toaster } from "@/components/ui/toaster";
-import { AdminSidebar } from "./AdminSidebar";
+import { AdminSidebar, type SidebarUser } from "./AdminSidebar";
 import { useSidebarVisibility } from "./SidebarVisibilityContext";
 import type { NavItem } from "@/lib/auth/nav";
-import type { User } from "@prisma/client";
 
 interface DashboardShellProps {
   companyName: string;
   logoUrl: string | null;
   nav: NavItem[];
-  user: User;
+  user: SidebarUser;
   notificationCount: number | null;
   children: React.ReactNode;
 }

@@ -87,11 +87,11 @@ export function OfficeLocationPanel({ officeId, latitude, longitude, radiusMeter
   return (
     <div className="space-y-3 rounded-md border p-3">
       <div>
-        <p className="text-sm font-medium">Office location (for QR attendance)</p>
+        <p className="text-sm font-medium">Office location (for location-based attendance)</p>
         <p className="text-xs text-muted-foreground">
-          In QR + location mode, a scan only counts when the employee&apos;s phone puts them within the radius of
+          In Location-only and QR + location modes, attendance only counts when the employee&apos;s phone puts them within the radius of
           this point.
-          {latitude == null ? " Not set yet — QR + location mode won't work for this office until it is." : null}
+          {latitude == null ? " Not set yet — location-based attendance won't work for this office until it is." : null}
         </p>
       </div>
 

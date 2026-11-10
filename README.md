@@ -27,6 +27,19 @@ You need a real PostgreSQL database for local dev — see [docs/DATABASE.md](doc
 for options (Neon/Supabase free tier is the fastest path if you don't want to install
 Postgres locally).
 
+## Database seeding
+
+After applying migrations, run `npm run db:seed` or `node scripts/seed-db.mjs`
+with Node 20.12 or newer. The script loads the project’s `.env` automatically;
+existing process environment variables take precedence. Set `DATABASE_URL` and,
+to create the first super admin, both `SEED_ADMIN_EMAIL` and
+`SEED_ADMIN_PASSWORD` (at least 10 characters). `SEED_ADMIN_NAME` is optional.
+
+The seed creates missing company and attendance settings and the optional admin.
+Re-running it preserves existing accounts, passwords, and settings, including the
+selected attendance mode. It does not apply migrations or insert demo attendance.
+For local demo data, use the existing `npm run db:seed:demo` command.
+
 ## Documentation
 
 | Doc | Covers |
