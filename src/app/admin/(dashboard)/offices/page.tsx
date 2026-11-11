@@ -17,7 +17,23 @@ export default async function OfficesPage() {
   const canManageOffices = hasPermission(user.role, "offices", "manage");
   const [offices, departments] = await Promise.all([
     prisma.office.findMany({
-      include: { officeNetworks: true, _count: { select: { employees: true } } },
+      include: {
+        // Explicit field list, not the whole row: these go to a Client Component
+        // (NetworkRow) and must not carry agentSigningSecret/registrationTokenHash.
+        officeNetworks: {
+          select: {
+            id: true,
+            name: true,
+            status: true,
+            failMode: true,
+            cidr: true,
+            currentPublicIp: true,
+            currentPublicIpv6: true,
+            lastVerifiedAt: true,
+          },
+        },
+        _count: { select: { employees: true } },
+      },
       orderBy: { createdAt: "asc" },
     }),
     prisma.department.findMany({

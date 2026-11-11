@@ -11,7 +11,11 @@ export async function registerNetworkAgent(params: {
   registrationToken: string;
   sourceIp: string;
 }): Promise<RegisterAgentResult> {
-  const network = await prisma.officeNetwork.findUnique({ where: { agentId: params.agentId } });
+  const network = await prisma.officeNetwork.findUnique({
+    where: { agentId: params.agentId },
+    // Needed to verify the one-time token — omitted from every other read (lib/db/prisma.ts).
+    omit: { registrationTokenHash: false },
+  });
   if (!network) return { ok: false, reason: "NOT_FOUND" };
   if (network.status === "DISABLED") return { ok: false, reason: "DISABLED" };
   if (!network.registrationTokenHash || network.registrationTokenUsedAt) {

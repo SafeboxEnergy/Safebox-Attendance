@@ -50,8 +50,8 @@ export function AttendanceSettingsForm({ settings }: { settings: AttendanceSetti
           ))}
         </select>
         <p className="mt-1 text-xs text-muted-foreground">
-          {ATTENDANCE_MODE_DESCRIPTIONS.NETWORK_ONLY} {ATTENDANCE_MODE_DESCRIPTIONS.QR_ONLY} Switch back to Network
-          mode once the network is up again.
+          {ATTENDANCE_MODE_DESCRIPTIONS.LOCATION_ONLY} {ATTENDANCE_MODE_DESCRIPTIONS.NETWORK_ONLY}{" "}
+          {ATTENDANCE_MODE_DESCRIPTIONS.QR_ONLY}
         </p>
       </div>
       <div>

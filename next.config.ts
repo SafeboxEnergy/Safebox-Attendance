@@ -14,6 +14,7 @@ const nextConfig: NextConfig = {
   // final image. Netlify's own build/plugin ignores this and does its own thing,
   // so this is safe to leave on unconditionally; it doesn't affect Netlify deploys.
   output: "standalone",
+  allowedDevOrigins: ["brusquely-multijugate-torri.ngrok-free.dev"],
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },

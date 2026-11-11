@@ -83,7 +83,7 @@ export interface RecordAttendanceInput {
   tasks?: unknown;
   /** Sent instead of `tasks` when the employee had nothing to report — validated like `tasks`. */
   noTasksReason?: unknown;
-  /** The phone's reported position, for QR + location attendance. Untrusted client
+  /** The phone's reported position, for location-based attendance. Untrusted client
    * input, validated here against locationReadingSchema; only used where the mode calls for it. */
   location?: unknown;
 }
@@ -140,7 +140,7 @@ async function verifyQrScan(
   return { ok: true, qrCodeId: session.qrCodeId, qrSessionId: session.id, officeId: session.officeId };
 }
 
-/** Checks the phone's reported position against the office the scanned QR belongs to. */
+/** Checks the phone's reported position against the selected office. */
 async function verifyLocation(officeId: string, rawLocation: unknown) {
   const office = await prisma.office.findUniqueOrThrow({
     where: { id: officeId },
@@ -151,7 +151,8 @@ async function verifyLocation(officeId: string, rawLocation: unknown) {
 }
 
 /**
- * Proves the employee is at the office, the way the attendance mode says to:
+ * Checks presence using the configured attendance mode:
+ *  - LOCATION_ONLY: phone location inside the assigned office radius.
  *  - NETWORK_ONLY (Network mode): on the authorized office network.
  *  - QR_ONLY (QR + location mode): a scan of the office QR plus a phone location
  *    inside the office radius — for when the office network is down.
@@ -164,6 +165,12 @@ async function verifyPresence(
   input: RecordAttendanceInput
 ): Promise<PresenceResult> {
   const none = { qrCodeId: null, qrSessionId: null, officeNetworkId: null, location: null };
+
+  if (settings.attendanceMode === "LOCATION_ONLY") {
+    const location = await verifyLocation(employee.officeId, input.location);
+    if (!location.ok) return { ...location };
+    return { ok: true, verificationMethod: "LOCATION", ...none, location };
+  }
 
   if (settings.attendanceMode === "QR_ONLY") {
     const qr = await verifyQrScan(input.qrSessionToken, employee, settings);
@@ -186,8 +193,8 @@ async function verifyPresence(
 /**
  * Single entry point for the kiosk/QR flow. Determines clock-in vs clock-out,
  * enforces the configured attendance mode, and derives every security-sensitive
- * value (time, IP, office, status) server-side — nothing from the client is trusted
- * except the Attendance ID and the opaque QR session token.
+ * value (time, IP, office, status) server-side. Client inputs are validated;
+ * reported location remains a client assertion, not tamper-proof proof of presence.
  */
 export async function recordAttendance(input: RecordAttendanceInput): Promise<AttendanceActionResult> {
   const lookup = hashAttendanceId(normalizeAttendanceId(input.attendanceIdRaw));

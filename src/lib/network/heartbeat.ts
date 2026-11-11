@@ -22,7 +22,11 @@ export interface HeartbeatInput {
  * loop on Starlink's dynamic IP without ever trusting client-supplied network data.
  */
 export async function processHeartbeat(input: HeartbeatInput): Promise<HeartbeatResult> {
-  const network = await prisma.officeNetwork.findUnique({ where: { agentId: input.agentId } });
+  const network = await prisma.officeNetwork.findUnique({
+    where: { agentId: input.agentId },
+    // Needed to verify the HMAC — omitted from every other read (lib/db/prisma.ts).
+    omit: { agentSigningSecret: false },
+  });
   if (!network || network.officeId !== input.officeId) return { ok: false, reason: "NOT_FOUND" };
   if (network.status === "DISABLED") return { ok: false, reason: "DISABLED" };
   if (!network.agentSigningSecret) return { ok: false, reason: "NOT_REGISTERED" };

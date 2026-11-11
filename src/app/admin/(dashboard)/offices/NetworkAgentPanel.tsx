@@ -12,7 +12,24 @@ import {
 } from "@/lib/actions/offices";
 import { coveredIpFamilies, ipv6NetworkLabel } from "@/lib/network/matchIp";
 import { toast, toastError } from "@/hooks/use-toast";
-import type { OfficeNetwork } from "@prisma/client";
+import type { NetworkStatus } from "@prisma/client";
+
+/** Exactly the fields this panel renders. Not `OfficeNetwork`: that row carries
+ * `agentSigningSecret` (the HMAC key an agent heartbeat is signed with) and
+ * `registrationTokenHash`, and a Client Component's props are serialized into
+ * the page payload the browser receives. Whoever held that secret could forge a
+ * heartbeat and point the office's authorized IP anywhere. */
+export interface OfficeNetworkSummary {
+  id: string;
+  name: string;
+  status: NetworkStatus;
+  /** Free-form in the schema: "FAIL_CLOSED" | "FAIL_OPEN". */
+  failMode: string;
+  cidr: string | null;
+  currentPublicIp: string | null;
+  currentPublicIpv6: string | null;
+  lastVerifiedAt: Date | null;
+}
 
 function TokenReveal({ agentId, token, onClose }: { agentId: string; token: string; onClose: () => void }) {
   return (
@@ -107,7 +124,7 @@ export function CreateNetworkForm({ officeId }: { officeId: string }) {
   );
 }
 
-export function NetworkRow({ network }: { network: OfficeNetwork }) {
+export function NetworkRow({ network }: { network: OfficeNetworkSummary }) {
   const [pending, startTransition] = useTransition();
   const [revealedToken, setRevealedToken] = useState<string | null>(null);
   const [confirmingManual, setConfirmingManual] = useState(false);

@@ -34,7 +34,11 @@ export async function loginAction(_prev: LoginState, formData: FormData): Promis
     return { error: "Too many login attempts. Please try again later." };
   }
 
-  const user = await prisma.user.findUnique({ where: { email: parsed.data.email.toLowerCase() } });
+  const user = await prisma.user.findUnique({
+    where: { email: parsed.data.email.toLowerCase() },
+    // The one place that needs the hash — omitted from every other read (lib/db/prisma.ts).
+    omit: { passwordHash: false },
+  });
   const genericError = "Invalid email or password.";
 
   if (!user || !user.isActive) return { error: genericError };

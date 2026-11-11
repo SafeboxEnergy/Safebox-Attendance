@@ -5,6 +5,14 @@ import { prisma } from "@/lib/db/prisma";
 import { SECURE_COOKIES } from "@/lib/security/secureCookies";
 import type { User } from "@prisma/client";
 
+/**
+ * The signed-in admin as the rest of the app sees them: every field of `User`
+ * except `passwordHash`, which lib/db/prisma.ts omits from query results. Use
+ * this instead of `User` for anything derived from a read, so a value that
+ * reaches a Client Component cannot carry the hash.
+ */
+export type AdminUser = Omit<User, "passwordHash">;
+
 const SESSION_COOKIE = "attendance_admin_session";
 const SESSION_TTL_MS = 12 * 60 * 60 * 1000; // 12 hours
 
@@ -45,7 +53,7 @@ export async function destroySession() {
   store.delete(SESSION_COOKIE);
 }
 
-export async function getCurrentUser(): Promise<User | null> {
+export async function getCurrentUser(): Promise<AdminUser | null> {
   const store = await cookies();
   const token = store.get(SESSION_COOKIE)?.value;
   if (!token) return null;

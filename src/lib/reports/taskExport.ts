@@ -1,5 +1,7 @@
 import ExcelJS from "exceljs";
 import type { TaskReportDetail } from "./query";
+// Shared with the other CSV exports so the formula-injection guard applies here too.
+import { escapeCsvCell } from "./csv";
 
 /** CSV / Excel versions of the task report, laid out like the PDF:
  * Employee Name | Department | Clock In | Clock Out | Task | Status — one line per task,
@@ -17,11 +19,6 @@ function taskLines(r: TaskReportDetail) {
   if (r.noTasksReason !== null) return [{ task: `No tasks to report: ${r.noTasksReason}`, status: "", code: "" }];
   if (!r.tasks.length) return [{ task: "", status: "", code: "" }];
   return r.tasks.map((t, i) => ({ task: `${i + 1}. ${t.description}`, status: t.label, code: t.status }));
-}
-
-function escapeCsvCell(value: unknown): string {
-  const str = String(value ?? "");
-  return /[",\n]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
 }
 
 export function taskReportsToCsv(reports: TaskReportDetail[], summaryLines?: string[]): string {

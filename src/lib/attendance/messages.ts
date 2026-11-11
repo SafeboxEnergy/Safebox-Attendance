@@ -17,7 +17,7 @@ export const DENIAL_MESSAGES: Record<AttendanceDenialReason, string> = {
   LOCATION_OUT_OF_RANGE:
     "Your location is outside the office area, so attendance wasn't recorded.\nIf you are at the office, move near a window and try again.",
   LOCATION_NOT_CONFIGURED:
-    "QR attendance isn't set up for this office yet (its location hasn't been saved).\nPlease let your admin know.",
+    "Location-based attendance isn't set up for this office yet (its location hasn't been saved).\nPlease let your admin know.",
   ALREADY_COMPLETE: "You have already clocked in and out today.",
   TASK_REPORT_REQUIRED: "Before you clock out, please tell us what you worked on today.",
   TASK_REPORT_INVALID:
