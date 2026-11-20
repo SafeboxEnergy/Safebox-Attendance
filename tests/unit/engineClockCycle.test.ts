@@ -1,10 +1,18 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { verifyOfficeNetwork } from "@/lib/network/verifyOfficeNetwork";
+
+const { getActiveQrSession, consumeQrSession } = vi.hoisted(() => ({
+  getActiveQrSession: vi.fn(),
+  consumeQrSession: vi.fn(),
+}));
+vi.mock("@/lib/qr/session", () => ({ getActiveQrSession, consumeQrSession }));
 
 // In-memory stand-in for the attendance_records table, so the real engine's
 // clock-in/clock-out state machine can run at any wall-clock time without a DB.
 type Rec = Record<string, unknown> & { id: string; employeeId: string; attendanceDate: Date; clockIn: Date | null; clockOut: Date | null };
 const records: Rec[] = [];
 let attendanceMode = "NETWORK_ONLY";
+let crossOfficeAttendance = false;
 let officeLocation: { latitude: number | null; longitude: number | null; locationRadiusMeters: number } = { latitude: 6.4281, longitude: 3.4219, locationRadiusMeters: 150 };
 const sameDay = (a: Date, b: Date) => a.getTime() === b.getTime();
 
@@ -62,7 +70,7 @@ vi.mock("@/lib/attendance/settings", () => ({
     gracePeriodMinutes: 15,
     workEnd: "17:00",
     attendanceMode,
-    crossOfficeAttendance: false,
+    crossOfficeAttendance,
   }),
 }));
 vi.mock("@/lib/network/verifyOfficeNetwork", () => ({
@@ -124,11 +132,14 @@ describe("location-only attendance", () => {
     attendanceMode = "LOCATION_ONLY";
     officeLocation = { ...atOffice, locationRadiusMeters: 150 };
     vi.clearAllMocks();
+    vi.mocked(verifyOfficeNetwork).mockResolvedValue({ allowed: false, reason: "IP_NOT_AUTHORIZED" });
     vi.useFakeTimers();
     vi.setSystemTime(lagos("2026-11-02", "09:00"));
   });
   afterEach(() => {
     attendanceMode = "NETWORK_ONLY";
+    crossOfficeAttendance = false;
+    vi.mocked(verifyOfficeNetwork).mockResolvedValue({ allowed: true, officeNetworkId: "net1" });
     vi.useRealTimers();
   });
 
@@ -137,6 +148,7 @@ describe("location-only attendance", () => {
     const { verifyOfficeNetwork } = await import("@/lib/network/verifyOfficeNetwork");
     const first = await recordAttendance({ ...input, location: atOffice });
     expect(first.ok && first.action).toBe("CLOCK_IN");
+    expect(verifyOfficeNetwork).not.toHaveBeenCalled();
     expect(records[0]).toMatchObject({ verificationMethod: "LOCATION", clockInNetworkId: null, clockInQrId: null, clockInDistanceMeters: 0, clockInLocationAccuracyMeters: 20 });
     expect(prisma.office.findUniqueOrThrow).toHaveBeenCalledWith({
       where: { id: EMPLOYEE.officeId },
@@ -146,11 +158,12 @@ describe("location-only attendance", () => {
     vi.setSystemTime(lagos("2026-11-02", "17:30"));
     const denied = await recordAttendance({ ...input, tasks: TASKS, location: { ...atOffice, latitude: 7 } });
     expect(denied).toMatchObject({ ok: false, reason: "LOCATION_OUT_OF_RANGE" });
+    expect(verifyOfficeNetwork).toHaveBeenCalledTimes(1);
     expect(records[0].clockOut).toBeNull();
     const last = await recordAttendance({ ...input, tasks: TASKS, location: atOffice });
     expect(last.ok && last.action).toBe("CLOCK_OUT");
     expect(records[0]).toMatchObject({ clockOutDistanceMeters: 0, clockOutLocationAccuracyMeters: 20 });
-    expect(verifyOfficeNetwork).not.toHaveBeenCalled();
+    expect(verifyOfficeNetwork).toHaveBeenCalledTimes(1);
   });
 
   it.each([
@@ -168,5 +181,45 @@ describe("location-only attendance", () => {
     officeLocation = { latitude: null, longitude: null, locationRadiusMeters: 150 };
     expect(await recordAttendance({ ...input, location: atOffice })).toEqual({ ok: false, reason: "LOCATION_NOT_CONFIGURED" });
     expect(records).toHaveLength(0);
+  });
+
+  it("records the office network fallback independently at clock-in and clock-out", async () => {
+    vi.mocked(verifyOfficeNetwork).mockResolvedValue({ allowed: true, officeNetworkId: "net1" });
+    expect(await recordAttendance(input)).toMatchObject({ ok: true, action: "CLOCK_IN" });
+    expect(records[0]).toMatchObject({ verificationMethod: "NETWORK_FALLBACK", clockInNetworkId: "net1" });
+
+    vi.setSystemTime(lagos("2026-11-02", "17:30"));
+    const retry = { ...input, tasks: TASKS, location: { ...atOffice, latitude: 6.4296, accuracy: 25 } };
+    expect(await recordAttendance({ ...retry, retryImpreciseLocation: true }))
+      .toMatchObject({ ok: false, reason: "LOCATION_INACCURATE" });
+    expect(verifyOfficeNetwork).toHaveBeenCalledTimes(1);
+    expect(await recordAttendance(retry)).toMatchObject({ ok: true, action: "CLOCK_OUT" });
+    expect(records[0]).toMatchObject({ clockOutVerificationMethod: "NETWORK_FALLBACK", clockOutNetworkId: "net1" });
+    expect(verifyOfficeNetwork).toHaveBeenLastCalledWith(EMPLOYEE.officeId, input.sourceIp, { requireFresh: true });
+  });
+
+  it("uses the verified office network even for a distant, precise reading", async () => {
+    vi.mocked(verifyOfficeNetwork).mockResolvedValue({ allowed: true, officeNetworkId: "net1" });
+    expect(await recordAttendance({ ...input, location: { ...atOffice, latitude: 7 }, retryImpreciseLocation: true }))
+      .toMatchObject({ ok: true, action: "CLOCK_IN" });
+    expect(verifyOfficeNetwork).toHaveBeenCalledWith(EMPLOYEE.officeId, input.sourceIp, { requireFresh: true });
+    expect(records[0]).toMatchObject({ verificationMethod: "NETWORK_FALLBACK", clockInNetworkId: "net1" });
+  });
+
+  it("requires the QR before trying fallback and uses the scanned office when cross-office attendance is enabled", async () => {
+    attendanceMode = "QR_ONLY";
+    vi.mocked(verifyOfficeNetwork).mockResolvedValue({ allowed: true, officeNetworkId: "scanned-net" });
+    getActiveQrSession.mockResolvedValue({ ok: true, session: { id: "scan", officeId: "scanned-office", qrCodeId: "qr" } });
+    expect(await recordAttendance(input)).toMatchObject({ ok: false, reason: "QR_REQUIRED" });
+    const scanned = { ...input, qrSessionToken: "qr-session-token" };
+    expect(await recordAttendance(scanned)).toMatchObject({ ok: false, reason: "QR_WRONG_OFFICE" });
+    expect(verifyOfficeNetwork).not.toHaveBeenCalled();
+    expect(consumeQrSession).not.toHaveBeenCalled();
+
+    crossOfficeAttendance = true;
+    expect(await recordAttendance(scanned)).toMatchObject({ ok: true, action: "CLOCK_IN" });
+    expect(verifyOfficeNetwork).toHaveBeenCalledWith("scanned-office", input.sourceIp, { requireFresh: true });
+    expect(records[0]).toMatchObject({ verificationMethod: "NETWORK_FALLBACK", clockInQrId: "qr", clockInNetworkId: "scanned-net" });
+    expect(consumeQrSession).toHaveBeenCalledWith("scan");
   });
 });

@@ -333,6 +333,7 @@ enum VerificationMethod {
   QR_ONLY
   QR_LOCATION
   LOCATION
+  NETWORK_FALLBACK
   MANUAL_ADMIN
 }
 
@@ -365,6 +366,7 @@ model AttendanceRecord {
   clockInDeviceId       String?
   clockOutDeviceId      String?
   verificationMethod    VerificationMethod?
+  clockOutVerificationMethod VerificationMethod?
   // QR + location check (lib/attendance/location.ts): how far the phone reported
   // itself from the office, and how precise the reading was. Raw coordinates are
   // deliberately not kept — distance is all an audit needs.

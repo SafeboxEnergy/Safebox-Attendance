@@ -12,7 +12,8 @@ export type NetworkVerificationResult =
  */
 export async function verifyOfficeNetwork(
   officeId: string,
-  sourceIp: string
+  sourceIp: string,
+  { requireFresh = false }: { requireFresh?: boolean } = {}
 ): Promise<NetworkVerificationResult> {
   const [networks, settings] = await Promise.all([
     prisma.officeNetwork.findMany({ where: { officeId } }),
@@ -38,7 +39,7 @@ export async function verifyOfficeNetwork(
     // stale IPv4 address alive), an admin-entered CIDR by the network overall.
     const verifiedAt: Date | null =
       match === "IPV4" ? network.ipv4VerifiedAt : match === "IPV6" ? network.ipv6VerifiedAt : network.lastVerifiedAt;
-    if (isStale(verifiedAt) && network.failMode === "FAIL_CLOSED") {
+    if (isStale(verifiedAt) && (requireFresh || network.failMode === "FAIL_CLOSED")) {
       matchedOnlyStale = true;
       continue; // never authorize on stale data when configured fail-closed
     }

@@ -4,6 +4,7 @@ import { getAttendanceSettings } from "@/lib/attendance/settings";
 import { getActiveQrSession } from "@/lib/qr/session";
 import { QR_SESSION_COOKIE } from "@/lib/attendance/clockHandler";
 import { AttendanceRegister } from "@/components/attendance/AttendanceRegister";
+import { OfficeAttendanceShortcut } from "@/components/attendance/OfficeAttendanceShortcut";
 
 export const dynamic = "force-dynamic";
 
@@ -41,6 +42,7 @@ export default async function RegisterPage({
             />
           ) : null}
           <h1 className="text-xl font-bold sm:text-2xl">{company.companyName}</h1>
+          <OfficeAttendanceShortcut />
           <p className="mt-6 text-lg font-medium">Today&apos;s attendance requires QR verification.</p>
           <p className="mt-2 text-muted-foreground">
             Please scan the attendance QR code displayed at the office.

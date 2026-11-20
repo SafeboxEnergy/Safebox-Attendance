@@ -17,6 +17,7 @@ const bodySchema = z.object({
   noTasksReason: z.unknown().optional(),
   // Validated by the engine (locationReadingSchema) — a malformed reading is treated as none.
   location: z.unknown().optional(),
+  retryImpreciseLocation: z.boolean().optional(),
 });
 
 // Fits a full daily task report (20 tasks x 500 characters) plus the rest of the body.
@@ -66,6 +67,7 @@ export async function handleClockRequest(request: NextRequest): Promise<NextResp
     tasks: parsed.tasks,
     noTasksReason: parsed.noTasksReason,
     location: parsed.location,
+    retryImpreciseLocation: parsed.retryImpreciseLocation,
   });
 
   if (!result.ok) {

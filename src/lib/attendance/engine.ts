@@ -86,6 +86,8 @@ export interface RecordAttendanceInput {
   /** The phone's reported position, for location-based attendance. Untrusted client
    * input, validated here against locationReadingSchema; only used where the mode calls for it. */
   location?: unknown;
+  /** Lets the browser request a fresh fix before trying the network. */
+  retryImpreciseLocation?: boolean;
 }
 
 /** Alerts Super Admins the first time an office's clock-in is blocked because its
@@ -166,18 +168,30 @@ async function verifyPresence(
 ): Promise<PresenceResult> {
   const none = { qrCodeId: null, qrSessionId: null, officeNetworkId: null, location: null };
 
-  if (settings.attendanceMode === "LOCATION_ONLY") {
-    const location = await verifyLocation(employee.officeId, input.location);
-    if (!location.ok) return { ...location };
-    return { ok: true, verificationMethod: "LOCATION", ...none, location };
-  }
+  if (settings.attendanceMode === "LOCATION_ONLY" || settings.attendanceMode === "QR_ONLY") {
+    const qr = settings.attendanceMode === "QR_ONLY"
+      ? await verifyQrScan(input.qrSessionToken, employee, settings)
+      : null;
+    if (qr && !qr.ok) return qr;
 
-  if (settings.attendanceMode === "QR_ONLY") {
-    const qr = await verifyQrScan(input.qrSessionToken, employee, settings);
-    if (!qr.ok) return qr;
-    const location = await verifyLocation(qr.officeId, input.location);
-    if (!location.ok) return { ...location };
-    return { ok: true, verificationMethod: "QR_LOCATION", ...none, qrCodeId: qr.qrCodeId, qrSessionId: qr.qrSessionId, location };
+    const officeId = qr?.officeId ?? employee.officeId;
+    const evidence = { ...none, qrCodeId: qr?.qrCodeId ?? null, qrSessionId: qr?.qrSessionId ?? null };
+    const location = await verifyLocation(officeId, input.location);
+    if (location.ok) {
+      return { ok: true, ...evidence, verificationMethod: qr ? "QR_LOCATION" : "LOCATION", location };
+    }
+
+    const canUseNetwork =
+      (location.reason === "LOCATION_REQUIRED" && input.location === undefined) ||
+      (location.reason === "LOCATION_INACCURATE" && !input.retryImpreciseLocation) ||
+      location.reason === "LOCATION_OUT_OF_RANGE";
+    if (canUseNetwork) {
+      const network = await verifyOfficeNetwork(officeId, input.sourceIp, { requireFresh: true });
+      if (network.allowed) {
+        return { ok: true, ...evidence, verificationMethod: "NETWORK_FALLBACK", officeNetworkId: network.officeNetworkId };
+      }
+    }
+    return location;
   }
 
   const net = await verifyOfficeNetwork(employee.officeId, input.sourceIp);
@@ -362,6 +376,7 @@ export async function recordAttendance(input: RecordAttendanceInput): Promise<At
           clockOutIp: input.sourceIp,
           clockOutUserAgent: input.userAgent,
           clockOutNetworkId: officeNetworkId,
+          clockOutVerificationMethod: verificationMethod,
           clockOutQrId: qrCodeId,
           clockOutDeviceId: input.deviceId ?? null,
           clockOutDistanceMeters: location?.distanceMeters ?? null,
