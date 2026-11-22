@@ -179,7 +179,7 @@ export default async function AttendanceListPage({
               <th className="px-4 py-2">Clock Out</th>
               <th className="px-4 py-2">Status</th>
               <th className="px-4 py-2">Type</th>
-              <th className="px-4 py-2">Method</th>
+              <th className="px-4 py-2">Verification</th>
               <th className="px-4 py-2">Flag</th>
               <th className="px-4 py-2" />
             </tr>
@@ -213,7 +213,10 @@ export default async function AttendanceListPage({
                   </span>
                 </td>
                 <td className="px-4 py-2">{r.attendanceType}</td>
-                <td className="px-4 py-2">{r.verificationMethod ?? "—"}</td>
+                <td className="px-4 py-2">
+                  <div>In · {r.verificationMethod?.replaceAll("_", " ") ?? "—"}</div>
+                  {r.clockOut && <div>Out · {r.clockOutVerificationMethod?.replaceAll("_", " ") ?? "—"}</div>}
+                </td>
                 <td className="px-4 py-2">
                   {unreviewedFlag ? (
                     <Link

@@ -3,6 +3,9 @@
 import { useState, useRef, useEffect, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { OfficeAttendanceShortcut } from "./OfficeAttendanceShortcut";
+import type { LocationReading } from "@/lib/attendance/location";
+import { readLocation } from "@/lib/attendance/readLocation";
 import { countWords, MAX_EARLY_CLOCKOUT_REASON_WORDS } from "@/lib/attendance/rules";
 import {
   MAX_NO_TASKS_REASON_LENGTH,
@@ -70,51 +73,8 @@ const REQUEST_TIMEOUT_MS = 20_000;
 // near a window) — kept on the ID screen with their ID still filled in.
 const LOCATION_DENIALS = new Set(["LOCATION_REQUIRED", "LOCATION_INACCURATE", "LOCATION_OUT_OF_RANGE"]);
 
-const LOCATION_TIMEOUT_MS = 15_000;
 /** A good reading is reused across the clock-out steps rather than re-fetched for each. */
 const LOCATION_REUSE_MS = 60_000;
-
-const LOCATION_ERRORS = {
-  denied:
-    "Location access is blocked, so we can't confirm you're at the office.\niPhone: Settings › Privacy & Security › Location Services › Safari Websites › While Using the App.\nAndroid: tap the icon left of the web address › Permissions › Location › Allow.\nThen try again.",
-  unavailable: "Your phone couldn't work out where you are.\nMake sure Location/GPS is turned on, then try again.",
-  timeout: "Finding your location took too long.\nMake sure Location/GPS is on, move near a window, and try again.",
-  unsupported: "This browser can't share your location.\nPlease open this attendance page in Chrome or Safari and try again.",
-  // Browsers only hand out location on https pages — no setting on the phone fixes this.
-  insecure:
-    "Your location can't be checked because this attendance page isn't on a secure (https) connection.\nPlease let your admin know.",
-};
-
-interface LocationReading {
-  latitude: number;
-  longitude: number;
-  accuracy: number;
-}
-
-/** The phone's position, or why we couldn't get it. The server makes the actual decision. */
-function readLocation(): Promise<{ reading: LocationReading } | { error: string }> {
-  if (typeof window !== "undefined" && !window.isSecureContext) {
-    return Promise.resolve({ error: LOCATION_ERRORS.insecure });
-  }
-  if (typeof navigator === "undefined" || !navigator.geolocation) {
-    return Promise.resolve({ error: LOCATION_ERRORS.unsupported });
-  }
-  return new Promise((resolve) => {
-    navigator.geolocation.getCurrentPosition(
-      ({ coords }) => resolve({ reading: { latitude: coords.latitude, longitude: coords.longitude, accuracy: coords.accuracy } }),
-      (err) =>
-        resolve({
-          error:
-            err.code === err.PERMISSION_DENIED
-              ? LOCATION_ERRORS.denied
-              : err.code === err.TIMEOUT
-                ? LOCATION_ERRORS.timeout
-                : LOCATION_ERRORS.unavailable,
-        }),
-      { enableHighAccuracy: true, timeout: LOCATION_TIMEOUT_MS, maximumAge: 0 }
-    );
-  });
-}
 
 export function AttendanceRegister({
   companyName,
@@ -201,28 +161,45 @@ export function AttendanceRegister({
       }
     }
 
-    // Give up on a stalled request instead of spinning forever (which is what sent
-    // people to the refresh button). Retrying is safe: a repeat of a clock-in that
-    // did go through is answered as "already clocked in", never a second record.
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+    async function sendClock(reading: LocationReading | undefined, retryImpreciseLocation: boolean) {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+      try {
+        const res = await fetch("/api/attendance/clock-in", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ attendanceId, ...payload, location: reading, retryImpreciseLocation }),
+          signal: controller.signal,
+        });
+        return await res.json().catch(() => ({
+          ok: false,
+          reason: "SERVER_ERROR",
+          message: "Something went wrong on the server. Please try again.",
+        }));
+      } finally {
+        clearTimeout(timeout);
+      }
+    }
+
     try {
-      const res = await fetch("/api/attendance/clock-in", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ attendanceId, ...payload, ...(location ? { location } : {}) }),
-        signal: controller.signal,
-      });
-      // A crashed request returns an HTML error page, not JSON — report it as a server error rather than a network one.
-      const data = await res.json().catch(() => ({
-        ok: false,
-        reason: "SERVER_ERROR",
-        message: "Something went wrong on the server and nothing was saved. Please try again — if it keeps happening, tell your admin.",
-      }));
+      let data = await sendClock(location, Boolean(location));
+      if (!data.ok && data.reason === "LOCATION_INACCURATE" && location) {
+        lastLocation.current = null;
+        setLocating(true);
+        const retry = await readLocation(5_000);
+        setLocating(false);
+        if ("reading" in retry) {
+          location = retry.reading;
+          lastLocation.current = { reading: location, at: Date.now() };
+        }
+        data = await sendClock(location, false);
+      }
       if (!data.ok && LOCATION_DENIALS.has(data.reason)) {
         // Whatever reading led here isn't worth reusing on the retry.
         lastLocation.current = null;
-        if (data.reason === "LOCATION_REQUIRED" && locationProblem) data.message = locationProblem;
+        if (data.reason === "LOCATION_REQUIRED" && locationProblem) {
+          data.message = `${locationProblem}\nYou can also connect to the authorized office Wi-Fi and retry.`;
+        }
       }
       if (data.ok) {
         resetFlow();
@@ -256,7 +233,6 @@ export function AttendanceRegister({
         setResult({ ok: false, message });
       }
     } finally {
-      clearTimeout(timeout);
       setSubmitting(false);
     }
   }
@@ -532,7 +508,7 @@ export function AttendanceRegister({
           <img src={logoUrl} alt={companyName} className="mx-auto mb-4 h-16 w-16 object-contain sm:h-20 sm:w-20" />
         ) : null}
         <h1 className="text-xl font-bold sm:text-2xl">{companyName}</h1>
-        <p className="mt-1 text-sm font-medium tracking-wide text-muted-foreground">OFFICE ATTENDANCE</p>
+        <OfficeAttendanceShortcut />
         {hasQrSession ? (
           <p className="mt-3 rounded-md bg-primary/10 px-3 py-2 text-sm text-primary">
             QR verified — enter your Attendance ID to continue.

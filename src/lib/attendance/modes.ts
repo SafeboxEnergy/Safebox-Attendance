@@ -8,8 +8,8 @@ export const ATTENDANCE_MODE_LABELS: Record<AttendanceMode, string> = {
 };
 
 export const ATTENDANCE_MODE_DESCRIPTIONS: Record<AttendanceMode, string> = {
-  LOCATION_ONLY: "Staff enter their Attendance ID and share their location within their assigned office radius. No office Wi-Fi or QR scan required.",
+  LOCATION_ONLY: "Staff enter their Attendance ID and share their location. The verified office network can confirm attendance when the location check fails.",
   NETWORK_ONLY: "Staff clock in on the office Wi-Fi.",
   QR_ONLY:
-    "For when the office network is down: staff scan the printed office QR code on mobile data, and their phone's location must be inside the office radius.",
+    "Staff scan the office QR and share their location. If the location check fails, the scanned office's verified network can confirm attendance.",
 };

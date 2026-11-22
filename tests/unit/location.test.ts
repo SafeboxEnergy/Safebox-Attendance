@@ -43,6 +43,11 @@ describe("checkOfficeLocation", () => {
     expect(result).toEqual({ ok: false, reason: "LOCATION_INACCURATE" });
   });
 
+  it("treats an outside reading with uncertainty overlapping the boundary as imprecise", () => {
+    expect(checkOfficeLocation(OFFICE, { ...OFFICE, latitude: 6.4296, accuracy: 25 }))
+      .toEqual({ ok: false, reason: "LOCATION_INACCURATE" });
+  });
+
   it("refuses without a reading, or when the office has no location saved", () => {
     expect(checkOfficeLocation(OFFICE, null)).toEqual({ ok: false, reason: "LOCATION_REQUIRED" });
     expect(

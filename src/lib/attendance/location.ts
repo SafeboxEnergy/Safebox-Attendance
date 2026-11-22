@@ -59,6 +59,9 @@ export function checkOfficeLocation(office: OfficeLocation, reading: LocationRea
     distanceMeters({ latitude: office.latitude, longitude: office.longitude }, reading)
   );
   if (distance > office.locationRadiusMeters) {
+    if (distance - reading.accuracy <= office.locationRadiusMeters) {
+      return { ok: false, reason: "LOCATION_INACCURATE" };
+    }
     return { ok: false, reason: "LOCATION_OUT_OF_RANGE", distanceMeters: distance };
   }
   return { ok: true, distanceMeters: distance, accuracyMeters: Math.round(reading.accuracy) };

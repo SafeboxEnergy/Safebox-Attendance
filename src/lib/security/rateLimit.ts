@@ -65,6 +65,7 @@ export async function checkRateLimit(key: string, config: RateLimitConfig): Prom
 
 export const RATE_LIMITS = {
   attendanceId: { scope: "attendance-id", limit: 8, windowSeconds: 300, lockoutSeconds: 600 },
+  testOfficeLookup: { scope: "test-office-lookup", limit: 60, windowSeconds: 60, lockoutSeconds: 60 },
   adminLogin: { scope: "admin-login", limit: 5, windowSeconds: 300, lockoutSeconds: 900 },
   qrLookup: { scope: "qr-lookup", limit: 20, windowSeconds: 60, lockoutSeconds: 120 },
   networkHeartbeat: { scope: "network-heartbeat", limit: 30, windowSeconds: 300, lockoutSeconds: 60 },

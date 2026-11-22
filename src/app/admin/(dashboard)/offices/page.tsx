@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db/prisma";
+import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CreateNetworkForm, NetworkRow } from "./NetworkAgentPanel";
 import { CreateOfficeForm } from "./CreateOfficeForm";
@@ -53,6 +54,9 @@ export default async function OfficesPage() {
           <strong>Authorize This Network Now</strong> below while connected to office Wi-Fi — no dedicated machine
           needed, just re-click it whenever Starlink&apos;s IP changes.
         </p>
+        <Link href="/test?from=offices" className="text-sm font-medium underline underline-offset-4">
+          Test the office geofence on this device
+        </Link>
       </PageHeader>
       <div className="space-y-6 px-4 py-6 sm:px-6 md:px-8">
       <Card>

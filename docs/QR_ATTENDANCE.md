@@ -6,9 +6,9 @@ Set in Admin → Settings → Attendance rules (`AttendanceSettings.attendanceMo
 
 | Mode | Requires |
 |---|---|
-| **Location-only mode** (`LOCATION_ONLY`) | Attendance ID + phone location inside the assigned office radius; no QR scan or authorized network required. |
+| **Location-only mode** (`LOCATION_ONLY`) | Attendance ID + device location inside the assigned office radius, with office-network fallback. |
 | **Network mode** (`NETWORK_ONLY`, default) | Attendance ID + authorized office network |
-| **QR + location mode** (`QR_ONLY`) | Attendance ID + a scan of the office QR + a phone location inside the office radius — for when the office network is down (e.g. a power cut). Staff use mobile data. |
+| **QR + location mode** (`QR_ONLY`) | Attendance ID + a valid office QR scan + device location inside the scanned office radius, with office-network fallback. Staff can use mobile data when the office network is down. |
 
 An admin switches to QR + location mode in Settings when the office network goes down,
 and back to Network mode once it's up. QR + location mode needs:
@@ -35,6 +35,19 @@ selecting this mode.
 Location readings are client-reported and can be fabricated; this is a proximity
 check, not tamper-proof proof of presence. The existing accuracy limit (200 m) and
 office radius apply. Records store distance and accuracy, not employee coordinates.
+
+The register retries an imprecise reading once, including an outside reading whose
+reported uncertainty overlaps the office boundary. If no reading is available,
+the reading stays imprecise, or the reading is out of range, the server can accept
+the current request through a freshly verified office network. A missing office
+pin still blocks attendance. The admin attendance table shows the verification
+method for clock-in and clock-out separately.
+
+Signed-in admins with office-view permission can open `/test` from Offices &
+Network to compare their browser's reading with a saved office boundary.
+Employees can open `/test` and enter their Attendance ID to load their assigned
+office's boundary. Device readings stay in the browser and the test does not
+record attendance.
 
 ## Generating a QR code
 
@@ -91,9 +104,9 @@ automatically on the follow-up POST.
 ## Why the QR alone isn't enough
 
 A photo of the QR code (or a forwarded link) can leave the building, and a printed code
-never expires. QR + location mode therefore also requires the phone's reported location to
-be inside the office radius; a failed or vague reading records nothing and can be retried
-with the same scan.
+never expires. QR + location mode also checks the device's location or the scanned
+office's verified network. A failed presence check can be retried with the same
+scan while the session is valid.
 
 ## Cross-office QR
 

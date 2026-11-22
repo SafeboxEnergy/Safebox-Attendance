@@ -11,11 +11,11 @@ export const DENIAL_MESSAGES: Record<AttendanceDenialReason, string> = {
   NETWORK_DENIED:
     "Attendance unavailable.\nYou must be connected to the company's authorized office network to clock attendance.\nOn the office Wi-Fi with an iPhone? Turn off iCloud Private Relay (Settings › your name › iCloud › Private Relay) and Limit IP Address Tracking (Settings › Wi-Fi › ⓘ next to the network), then try again.",
   LOCATION_REQUIRED:
-    "We need your location to confirm you're at the office.\nAllow location access when your phone asks, then try again.",
+    "Allow location access or connect to the authorized office Wi-Fi, then try again.",
   LOCATION_INACCURATE:
-    "Your phone's location reading isn't precise enough to confirm you're at the office.\nMake sure Location/GPS is on, move near a window, and try again.",
+    "Your device's location was too uncertain.\nTry again near a window or connect to the authorized office Wi-Fi.",
   LOCATION_OUT_OF_RANGE:
-    "Your location is outside the office area, so attendance wasn't recorded.\nIf you are at the office, move near a window and try again.",
+    "Your location is outside the office area, so attendance wasn't recorded.\nIf you are at the office, connect to the authorized office Wi-Fi and try again.",
   LOCATION_NOT_CONFIGURED:
     "Location-based attendance isn't set up for this office yet (its location hasn't been saved).\nPlease let your admin know.",
   ALREADY_COMPLETE: "You have already clocked in and out today.",
@@ -32,7 +32,7 @@ export function denialMessage(denial: AttendanceDenial, sourceIp?: string): stri
     return `${DENIAL_MESSAGES.NETWORK_DENIED}\nYour connection's address: ${sourceIp}`;
   }
   if (denial.reason === "LOCATION_OUT_OF_RANGE" && denial.distanceMeters != null) {
-    return `Your phone places you ${formatDistance(denial.distanceMeters)} from the office, so attendance wasn't recorded.\nIf you are at the office, move near a window and try again.`;
+    return `Your device places you ${formatDistance(denial.distanceMeters)} from the office, so attendance wasn't recorded.\nIf you are at the office, connect to the authorized office Wi-Fi and try again.`;
   }
   return DENIAL_MESSAGES[denial.reason];
 }
